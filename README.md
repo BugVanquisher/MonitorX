@@ -1,2 +1,310 @@
-# MonitorX
+# 🎯 MonitorX: ML/AI Infrastructure Observability Platform
 
+**The missing piece between ML model deployment and production reliability**
+
+MonitorX addresses the observability gap that every ML team faces at scale by providing comprehensive monitoring, alerting, and analytics for production ML infrastructure.
+
+## ✨ Features
+
+### Core Monitoring
+- **Real-time inference metrics**: Latency, throughput, error rates across model types (LLM, CV, tabular)
+- **Model drift detection**: Data/concept drift with automated alerting
+- **Resource utilization tracking**: GPU memory, compute efficiency, cost attribution
+- **Custom metric ingestion**: Flexible API for team-specific KPIs
+
+### Intelligent Alerting
+- **ML-aware alerting**: Context-sensitive thresholds per model
+- **Multi-channel notifications**: Email, Slack, webhooks
+- **Rate limiting**: Prevent alert spam with intelligent deduplication
+- **Severity-based routing**: Critical alerts get immediate attention
+
+### Production Dashboard
+- **Real-time metrics visualization**: Interactive charts and graphs
+- **Service-level views**: Per-model SLIs/SLOs with burn-rate monitoring
+- **Historical analysis**: Performance trends and capacity planning
+- **Alert management**: Centralized alert tracking and resolution
+
+### Developer Experience
+- **Python SDK**: Easy integration with existing ML pipelines
+- **Decorators**: Zero-code monitoring for ML functions
+- **REST API**: Full programmatic access with OpenAPI docs
+- **Time-series storage**: Efficient InfluxDB backend for scalability
+
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/monitorx.git
+cd monitorx
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install in development mode
+pip install -e .
+```
+
+### Setup InfluxDB
+
+```bash
+# Using Docker
+docker run -d --name influxdb \
+  -p 8086:8086 \
+  -e DOCKER_INFLUXDB_INIT_MODE=setup \
+  -e DOCKER_INFLUXDB_INIT_USERNAME=admin \
+  -e DOCKER_INFLUXDB_INIT_PASSWORD=password123 \
+  -e DOCKER_INFLUXDB_INIT_ORG=monitorx \
+  -e DOCKER_INFLUXDB_INIT_BUCKET=metrics \
+  influxdb:2.7
+```
+
+### Configuration
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit configuration
+vim .env
+```
+
+### Start Services
+
+```bash
+# Start API server
+python -m monitorx.server
+
+# Start dashboard (in another terminal)
+streamlit run src/monitorx/dashboard/app.py --server.port 8501
+```
+
+Visit:
+- **API Documentation**: http://localhost:8000/docs
+- **Dashboard**: http://localhost:8501
+- **API Health**: http://localhost:8000/api/v1/health
+
+## 📊 Usage Examples
+
+### Basic SDK Usage
+
+```python
+import asyncio
+from monitorx.sdk import MonitorXClient
+from monitorx.types import ModelConfig, Thresholds
+
+async def main():
+    # Initialize client
+    client = MonitorXClient("http://localhost:8000")
+
+    # Register a model
+    config = ModelConfig(
+        id="my-llm-v1",
+        name="My LLM Model",
+        model_type="llm",
+        version="1.0.0",
+        environment="prod",
+        thresholds=Thresholds(
+            latency=2000.0,  # 2 seconds
+            error_rate=0.01,  # 1%
+            gpu_memory=0.85   # 85%
+        )
+    )
+    await client.register_model(config)
+
+    # Collect inference metrics
+    await client.collect_inference_metric(
+        model_id="my-llm-v1",
+        model_type="llm",
+        latency=1500.0,
+        throughput=10.5,
+        error_rate=0.005,
+        tags={"version": "1.0.0", "endpoint": "/api/chat"}
+    )
+
+    # Get summary statistics
+    stats = await client.get_summary_stats("my-llm-v1", since_hours=24)
+    print(f"Average latency: {stats['average_latency']:.1f}ms")
+
+asyncio.run(main())
+```
+
+### Using Decorators
+
+```python
+from monitorx.sdk import MonitorXClient, MonitorXContext, monitor_inference
+
+# Set up client context
+client = MonitorXClient("http://localhost:8000")
+
+@monitor_inference(
+    model_id="my-cv-model",
+    model_type="cv",
+    tags={"version": "2.1.0"}
+)
+async def process_image(image_path: str) -> dict:
+    # Your ML inference code here
+    # Latency and errors are automatically tracked
+    result = await your_model.predict(image_path)
+    return result
+
+# Use within context
+async def main():
+    async with client:
+        with MonitorXContext(client):
+            result = await process_image("/path/to/image.jpg")
+```
+
+### Direct API Usage
+
+```python
+import httpx
+
+# Register model
+async with httpx.AsyncClient() as client:
+    model_config = {
+        "id": "fraud-detector-v3",
+        "name": "Fraud Detection Model",
+        "model_type": "tabular",
+        "version": "3.0.0",
+        "environment": "prod",
+        "thresholds": {
+            "latency": 500.0,
+            "error_rate": 0.02,
+            "cpu_usage": 0.8
+        }
+    }
+
+    response = await client.post(
+        "http://localhost:8000/api/v1/models",
+        json=model_config
+    )
+    print(response.json())
+
+    # Send metrics
+    metric = {
+        "model_id": "fraud-detector-v3",
+        "model_type": "tabular",
+        "request_id": "req-123456",
+        "latency": 245.0,
+        "error_rate": 0.01,
+        "tags": {"feature_version": "v2"}
+    }
+
+    response = await client.post(
+        "http://localhost:8000/api/v1/metrics/inference",
+        json=metric
+    )
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `INFLUXDB_URL` | InfluxDB server URL | `http://localhost:8086` |
+| `INFLUXDB_TOKEN` | InfluxDB access token | Required |
+| `INFLUXDB_ORG` | InfluxDB organization | `monitorx` |
+| `INFLUXDB_BUCKET` | InfluxDB bucket name | `metrics` |
+| `API_HOST` | API server host | `0.0.0.0` |
+| `API_PORT` | API server port | `8000` |
+| `DASHBOARD_PORT` | Streamlit dashboard port | `8501` |
+| `LOG_LEVEL` | Logging level | `INFO` |
+
+### Alert Configuration
+
+```python
+from monitorx.services import AlertingService, EmailChannel, SlackChannel
+
+# Set up alerting
+alerting = AlertingService()
+
+# Email alerts
+email_channel = EmailChannel(
+    name="email-alerts",
+    smtp_server="smtp.gmail.com",
+    smtp_port=587,
+    username="your-email@gmail.com",
+    password="your-app-password",
+    from_email="alerts@yourcompany.com",
+    to_emails=["team@yourcompany.com"]
+)
+alerting.add_channel(email_channel)
+
+# Slack alerts
+slack_channel = SlackChannel(
+    name="slack-alerts",
+    webhook_url="https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+    channel="#ml-alerts"
+)
+alerting.add_channel(slack_channel)
+
+# Register with metrics collector
+metrics_collector.add_alert_callback(alerting.send_alert)
+```
+
+## 📈 Metrics Reference
+
+### Inference Metrics
+- **latency**: Request processing time (milliseconds)
+- **throughput**: Requests per second
+- **error_rate**: Fraction of failed requests (0.0-1.0)
+- **resource_usage**: GPU/CPU/memory utilization (0.0-1.0)
+
+### Drift Metrics
+- **drift_type**: Type of drift ("data" or "concept")
+- **severity**: Drift severity ("low", "medium", "high", "critical")
+- **confidence**: Detection confidence (0.0-1.0)
+
+### Alert Types
+- **latency**: High response time alerts
+- **error_rate**: Error rate threshold breaches
+- **drift**: Model drift detection alerts
+- **resource_usage**: Resource utilization alerts
+
+## 🏗️ Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   ML Models     │    │    MonitorX      │    │   InfluxDB      │
+│                 │───▶│   FastAPI API    │───▶│  Time-Series    │
+│ • LLM           │    │                  │    │   Database      │
+│ • Computer Vision│    │ • Metrics        │    │                 │
+│ • Tabular       │    │ • Alerts         │    └─────────────────┘
+└─────────────────┘    │ • Models         │           │
+                       └──────────────────┘           │
+                              │                       │
+                              ▼                       ▼
+                    ┌──────────────────┐    ┌─────────────────┐
+                    │   Streamlit      │    │   Alerting      │
+                    │   Dashboard      │    │   Service       │
+                    │                  │    │                 │
+                    │ • Real-time UI   │    │ • Email         │
+                    │ • Charts         │    │ • Slack         │
+                    │ • Alerts         │    │ • Webhooks      │
+                    └──────────────────┘    └─────────────────┘
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Documentation**: Visit our [docs](docs/) for detailed guides
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/your-org/monitorx/issues)
+- **Discussions**: Join the community on [GitHub Discussions](https://github.com/your-org/monitorx/discussions)
+
+---
+
+**MonitorX v0.1.0** - Built with ❤️ for the ML community
