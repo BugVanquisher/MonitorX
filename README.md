@@ -32,7 +32,29 @@ MonitorX addresses the observability gap that every ML team faces at scale by pr
 
 ## 🚀 Quick Start
 
-### Installation
+### Using Docker Compose (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/monitorx.git
+cd monitorx
+
+# Start all services
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+```
+
+Visit:
+- **API Documentation**: http://localhost:8000/docs
+- **Dashboard**: http://localhost:8501
+- **InfluxDB UI**: http://localhost:8086
+
+### Manual Installation
 
 ```bash
 # Clone the repository
@@ -44,6 +66,10 @@ pip install -r requirements.txt
 
 # Install in development mode
 pip install -e .
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your settings
 ```
 
 ### Setup InfluxDB
@@ -287,6 +313,34 @@ metrics_collector.add_alert_callback(alerting.send_alert)
                     └──────────────────┘    └─────────────────┘
 ```
 
+## 📚 Documentation
+
+- **[API Documentation](docs/API.md)** - Complete REST API reference
+- **[Alerting Guide](docs/ALERTING.md)** - Setting up email, Slack, and webhook alerts
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment and scaling
+- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design and components
+- **[Testing Guide](TESTING.md)** - Running and writing tests
+
+## 🧪 Testing
+
+MonitorX includes comprehensive test coverage (99 tests):
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_api.py -v
+
+# Run with coverage
+pytest tests/ --cov=monitorx --cov-report=html
+```
+
+Test categories:
+- **Unit Tests**: Core types, metrics collector, SDK client
+- **API Tests**: All REST endpoints with mocked storage
+- **Integration Tests**: Alerting service with channel mocking
+
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -294,6 +348,23 @@ metrics_collector.add_alert_callback(alerting.send_alert)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+### Development Setup
+
+```bash
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/ -v
+
+# Format code
+black src/ tests/
+isort src/ tests/
+
+# Type check
+mypy src/
+```
 
 ## 📜 License
 
