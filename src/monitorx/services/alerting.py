@@ -3,8 +3,8 @@ from typing import List, Dict, Any, Callable, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import httpx
 from loguru import logger
 
@@ -162,13 +162,13 @@ class AlertingService:
         """
 
         # Create email message
-        msg = MimeMultipart('alternative')
+        msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = channel.from_email
         msg['To'] = ', '.join(channel.to_emails)
 
         # Attach HTML content
-        html_part = MimeText(html_content, 'html')
+        html_part = MIMEText(html_content, 'html')
         msg.attach(html_part)
 
         # Send email
