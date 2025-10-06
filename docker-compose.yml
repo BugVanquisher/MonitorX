@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: monitorx-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-admin123}
+      - DOCKER_INFLUXDB_INIT_ORG=monitorx
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-my-super-secret-token}
+      - DOCKER_INFLUXDB_INIT_RETENTION=30d
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  monitorx-api:
+    build: .
+    container_name: monitorx-api
+    ports:
+      - "8000:8000"
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-my-super-secret-token}
+      - INFLUXDB_ORG=monitorx
+      - INFLUXDB_BUCKET=metrics
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Email Alerts (optional)
+      - ENABLE_EMAIL_ALERTS=${ENABLE_EMAIL_ALERTS:-false}
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - ALERT_FROM_EMAIL=${ALERT_FROM_EMAIL}
+      - ALERT_TO_EMAILS=${ALERT_TO_EMAILS}
+      # Slack Alerts (optional)
+      - ENABLE_SLACK_ALERTS=${ENABLE_SLACK_ALERTS:-false}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - SLACK_CHANNEL=${SLACK_CHANNEL:-#ml-alerts}
+      # Webhook Alerts (optional)
+      - ENABLE_WEBHOOK_ALERTS=${ENABLE_WEBHOOK_ALERTS:-false}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - WEBHOOK_API_KEY=${WEBHOOK_API_KEY}
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: uvicorn monitorx.server:app --host 0.0.0.0 --port 8000
+
+  monitorx-dashboard:
+    build: .
+    container_name: monitorx-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - API_HOST=monitorx-api
+      - API_PORT=8000
+    depends_on:
+      monitorx-api:
+        condition: service_healthy
+    restart: unless-stopped
+    command: streamlit run src/monitorx/dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+
+networks:
+  default:
+    name: monitorx-network
