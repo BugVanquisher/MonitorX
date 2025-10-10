@@ -1,26 +1,112 @@
 import httpx
 import asyncio
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 from datetime import datetime
 import uuid
+import time
+from collections import deque
 from loguru import logger
 
 from ..types import InferenceMetric, DriftMetric, ModelConfig, ResourceUsage
 
 
+class CircuitBreaker:
+    """Circuit breaker implementation for fault tolerance."""
+
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        recovery_timeout: int = 60,
+        expected_exception: type = Exception
+    ):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.expected_exception = expected_exception
+
+        self.failure_count = 0
+        self.last_failure_time: Optional[float] = None
+        self.state = "closed"  # closed, open, half_open
+
+    def call(self, func: Callable, *args, **kwargs) -> Any:
+        """Execute function with circuit breaker protection."""
+        if self.state == "open":
+            if time.time() - self.last_failure_time >= self.recovery_timeout:
+                self.state = "half_open"
+                logger.info("Circuit breaker transitioning to half-open state")
+            else:
+                raise Exception("Circuit breaker is OPEN - service unavailable")
+
+        try:
+            result = func(*args, **kwargs)
+            if self.state == "half_open":
+                self.reset()
+            return result
+        except self.expected_exception as e:
+            self.record_failure()
+            raise e
+
+    async def call_async(self, func: Callable, *args, **kwargs) -> Any:
+        """Execute async function with circuit breaker protection."""
+        if self.state == "open":
+            if time.time() - self.last_failure_time >= self.recovery_timeout:
+                self.state = "half_open"
+                logger.info("Circuit breaker transitioning to half-open state")
+            else:
+                raise Exception("Circuit breaker is OPEN - service unavailable")
+
+        try:
+            result = await func(*args, **kwargs)
+            if self.state == "half_open":
+                self.reset()
+            return result
+        except self.expected_exception as e:
+            self.record_failure()
+            raise e
+
+    def record_failure(self) -> None:
+        """Record a failure."""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+
+        if self.failure_count >= self.failure_threshold:
+            self.state = "open"
+            logger.warning(f"Circuit breaker OPEN after {self.failure_count} failures")
+
+    def reset(self) -> None:
+        """Reset circuit breaker to closed state."""
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = "closed"
+        logger.info("Circuit breaker reset to CLOSED state")
+
+
 class MonitorXClient:
-    """Python SDK for MonitorX API integration."""
+    """Python SDK for MonitorX API integration with enhanced error handling."""
 
     def __init__(
         self,
         base_url: str = "http://localhost:8000",
         api_key: Optional[str] = None,
-        timeout: int = 30
+        timeout: int = 30,
+        max_retries: int = 3,
+        retry_backoff: float = 1.0,
+        enable_circuit_breaker: bool = True,
+        buffer_size: int = 1000
     ):
         self.base_url = base_url.rstrip('/')
         self.api_key = api_key
         self.timeout = timeout
+        self.max_retries = max_retries
+        self.retry_backoff = retry_backoff
         self.session = None
+
+        # Circuit breaker
+        self.circuit_breaker = CircuitBreaker() if enable_circuit_breaker else None
+
+        # Metric buffering for offline scenarios
+        self.buffer_size = buffer_size
+        self.metric_buffer: deque = deque(maxlen=buffer_size)
+        self.buffer_enabled = False
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -38,6 +124,208 @@ class MonitorXClient:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
+
+    def enable_buffering(self) -> None:
+        """Enable metric buffering for offline scenarios."""
+        self.buffer_enabled = True
+        logger.info("Metric buffering enabled")
+
+    def disable_buffering(self) -> None:
+        """Disable metric buffering."""
+        self.buffer_enabled = False
+        logger.info("Metric buffering disabled")
+
+    def get_buffer_size(self) -> int:
+        """Get current buffer size."""
+        return len(self.metric_buffer)
+
+    async def flush_buffer(self) -> Dict[str, int]:
+        """Flush all buffered metrics to the server."""
+        if not self.metric_buffer:
+            return {"flushed": 0, "failed": 0}
+
+        flushed = 0
+        failed = 0
+
+        # Temporarily disable buffering during flush
+        original_buffer_state = self.buffer_enabled
+        self.buffer_enabled = False
+
+        try:
+            while self.metric_buffer:
+                metric_data = self.metric_buffer.popleft()
+                metric_type = metric_data.get("type")
+
+                try:
+                    if metric_type == "inference":
+                        metric = InferenceMetric(**metric_data["data"])
+                        if self.session:
+                            await self._collect_inference_metric_request(self.session, metric)
+                        else:
+                            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                                await self._collect_inference_metric_request(client, metric)
+                        flushed += 1
+                    elif metric_type == "drift":
+                        drift_metric = DriftMetric(**metric_data["data"])
+                        if self.session:
+                            await self._collect_drift_metric_request(self.session, drift_metric)
+                        else:
+                            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                                await self._collect_drift_metric_request(client, drift_metric)
+                        flushed += 1
+                except Exception as e:
+                    logger.error(f"Failed to flush metric: {e}")
+                    failed += 1
+
+            logger.info(f"Buffer flush complete: {flushed} flushed, {failed} failed")
+        finally:
+            # Restore original buffer state
+            self.buffer_enabled = original_buffer_state
+
+        return {"flushed": flushed, "failed": failed}
+
+    async def _retry_with_backoff(
+        self,
+        func: Callable,
+        *args,
+        **kwargs
+    ) -> Any:
+        """Execute function with exponential backoff retry logic."""
+        last_exception = None
+
+        for attempt in range(self.max_retries):
+            try:
+                if self.circuit_breaker:
+                    return await self.circuit_breaker.call_async(func, *args, **kwargs)
+                else:
+                    return await func(*args, **kwargs)
+
+            except Exception as e:
+                last_exception = e
+                if attempt < self.max_retries - 1:
+                    # Calculate backoff time with exponential increase
+                    backoff_time = self.retry_backoff * (2 ** attempt)
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{self.max_retries} failed: {e}. "
+                        f"Retrying in {backoff_time}s..."
+                    )
+                    await asyncio.sleep(backoff_time)
+                else:
+                    logger.error(f"All {self.max_retries} attempts failed: {e}")
+
+        raise last_exception
+
+    async def collect_inference_metrics_batch(
+        self,
+        metrics: List[Dict[str, Any]]
+    ) -> Dict[str, int]:
+        """
+        Collect multiple inference metrics in a single batch request.
+
+        Args:
+            metrics: List of metric dictionaries with required fields
+
+        Returns:
+            Dictionary with success and failure counts
+        """
+        if not metrics:
+            return {"success": 0, "failed": 0}
+
+        # If buffering is enabled and we're offline, buffer the metrics
+        if self.buffer_enabled:
+            for metric_data in metrics:
+                self.metric_buffer.append({"type": "inference", "data": metric_data})
+            logger.debug(f"Buffered {len(metrics)} inference metrics")
+            return {"success": len(metrics), "failed": 0}
+
+        success = 0
+        failed = 0
+
+        # Process metrics in parallel for better performance
+        tasks = []
+        for metric_data in metrics:
+            # Fill in defaults
+            if "request_id" not in metric_data:
+                metric_data["request_id"] = str(uuid.uuid4())
+            if "tags" not in metric_data:
+                metric_data["tags"] = {}
+
+            metric = InferenceMetric(**metric_data)
+            if self.session:
+                task = self._collect_inference_metric_request_with_retry(self.session, metric)
+            else:
+                task = self._collect_single_metric_no_session(metric, "inference")
+            tasks.append(task)
+
+        # Wait for all tasks to complete
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for result in results:
+            if isinstance(result, Exception):
+                failed += 1
+            elif result:
+                success += 1
+            else:
+                failed += 1
+
+        logger.info(f"Batch collection complete: {success} succeeded, {failed} failed")
+        return {"success": success, "failed": failed}
+
+    async def _collect_single_metric_no_session(
+        self,
+        metric: InferenceMetric,
+        metric_type: str
+    ) -> bool:
+        """Helper to collect a single metric without persistent session."""
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            if metric_type == "inference":
+                return await self._collect_inference_metric_request_with_retry(client, metric)
+            else:
+                return await self._collect_drift_metric_request_with_retry(client, metric)
+
+    async def _collect_inference_metric_request_with_retry(
+        self,
+        client: httpx.AsyncClient,
+        metric: InferenceMetric
+    ) -> bool:
+        """Collect inference metric with retry logic."""
+        try:
+            return await self._retry_with_backoff(
+                self._collect_inference_metric_request,
+                client,
+                metric
+            )
+        except Exception as e:
+            logger.error(f"Failed to collect inference metric after retries: {e}")
+            # If buffering is enabled, add to buffer
+            if self.buffer_enabled:
+                self.metric_buffer.append({
+                    "type": "inference",
+                    "data": metric.model_dump()
+                })
+            return False
+
+    async def _collect_drift_metric_request_with_retry(
+        self,
+        client: httpx.AsyncClient,
+        drift_metric: DriftMetric
+    ) -> bool:
+        """Collect drift metric with retry logic."""
+        try:
+            return await self._retry_with_backoff(
+                self._collect_drift_metric_request,
+                client,
+                drift_metric
+            )
+        except Exception as e:
+            logger.error(f"Failed to collect drift metric after retries: {e}")
+            # If buffering is enabled, add to buffer
+            if self.buffer_enabled:
+                self.metric_buffer.append({
+                    "type": "drift",
+                    "data": drift_metric.model_dump()
+                })
+            return False
 
     async def register_model(self, config: ModelConfig) -> bool:
         """Register a model configuration."""
@@ -89,7 +377,7 @@ class MonitorXClient:
         resource_usage: Optional[ResourceUsage] = None,
         tags: Optional[Dict[str, str]] = None
     ) -> bool:
-        """Collect an inference metric."""
+        """Collect an inference metric with automatic retry."""
         if not request_id:
             request_id = str(uuid.uuid4())
 
@@ -109,9 +397,9 @@ class MonitorXClient:
 
         if not self.session:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                return await self._collect_inference_metric_request(client, metric)
+                return await self._collect_inference_metric_request_with_retry(client, metric)
         else:
-            return await self._collect_inference_metric_request(self.session, metric)
+            return await self._collect_inference_metric_request_with_retry(self.session, metric)
 
     async def _collect_inference_metric_request(
         self, client: httpx.AsyncClient, metric: InferenceMetric
@@ -160,7 +448,7 @@ class MonitorXClient:
         confidence: float,
         tags: Optional[Dict[str, str]] = None
     ) -> bool:
-        """Collect a drift detection metric."""
+        """Collect a drift detection metric with automatic retry."""
         if not tags:
             tags = {}
 
@@ -174,9 +462,9 @@ class MonitorXClient:
 
         if not self.session:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                return await self._collect_drift_metric_request(client, drift_metric)
+                return await self._collect_drift_metric_request_with_retry(client, drift_metric)
         else:
-            return await self._collect_drift_metric_request(self.session, drift_metric)
+            return await self._collect_drift_metric_request_with_retry(self.session, drift_metric)
 
     async def _collect_drift_metric_request(
         self, client: httpx.AsyncClient, drift_metric: DriftMetric

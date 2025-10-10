@@ -8,6 +8,7 @@ from loguru import logger
 from .api import router
 from .services.storage import InfluxDBStorage
 from .config import config
+from .middleware import RateLimitMiddleware
 
 
 # Global storage instance
@@ -43,10 +44,16 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=config.CORS_ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Add rate limiting middleware
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=config.RATE_LIMIT_REQUESTS
 )
 
 # Include API routes

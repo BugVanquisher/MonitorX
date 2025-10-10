@@ -20,6 +20,22 @@ class Config:
     # Logging configuration
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # Security configuration
+    API_KEY_ENABLED: bool = os.getenv("API_KEY_ENABLED", "false").lower() == "true"
+    API_KEYS: str = os.getenv("API_KEYS", "")
+    JWT_ENABLED: bool = os.getenv("JWT_ENABLED", "false").lower() == "true"
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production")
+    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "30"))
+
+    # Rate limiting configuration
+    RATE_LIMIT_ENABLED: bool = os.getenv("RATE_LIMIT_ENABLED", "false").lower() == "true"
+    RATE_LIMIT_REQUESTS: int = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
+    RATE_LIMIT_WINDOW: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
+
+    # CORS configuration
+    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "*").split(",")
+    CORS_ALLOW_CREDENTIALS: bool = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
+
     # Default thresholds
     DEFAULT_LATENCY_THRESHOLD: float = 1000.0  # ms
     DEFAULT_ERROR_RATE_THRESHOLD: float = 0.05  # 5%
