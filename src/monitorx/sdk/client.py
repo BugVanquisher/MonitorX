@@ -5,6 +5,7 @@ from datetime import datetime
 import uuid
 import time
 from collections import deque
+from dataclasses import asdict
 from loguru import logger
 
 from ..types import InferenceMetric, DriftMetric, ModelConfig, ResourceUsage
@@ -301,7 +302,7 @@ class MonitorXClient:
             if self.buffer_enabled:
                 self.metric_buffer.append({
                     "type": "inference",
-                    "data": metric.model_dump()
+                    "data": asdict(metric)
                 })
             return False
 
@@ -323,7 +324,7 @@ class MonitorXClient:
             if self.buffer_enabled:
                 self.metric_buffer.append({
                     "type": "drift",
-                    "data": drift_metric.model_dump()
+                    "data": asdict(drift_metric)
                 })
             return False
 
@@ -394,6 +395,15 @@ class MonitorXClient:
             resource_usage=resource_usage,
             tags=tags
         )
+
+        # If buffering is enabled, buffer immediately
+        if self.buffer_enabled:
+            self.metric_buffer.append({
+                "type": "inference",
+                "data": asdict(metric)
+            })
+            logger.debug(f"Buffered inference metric for model {model_id}")
+            return True
 
         if not self.session:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
