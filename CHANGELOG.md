@@ -465,7 +465,9 @@ We welcome contributions! See the contributing guidelines in the README.
 
 ## 📄 License
 
-MIT License - See LICENSE file for details.
+Apache License 2.0 - See LICENSE file for details.
+
+Copyright 2025 MonitorX Team
 
 ---
 
