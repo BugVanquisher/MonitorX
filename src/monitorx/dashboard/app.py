@@ -7,6 +7,9 @@ import httpx
 from datetime import datetime, timedelta
 import asyncio
 from typing import Dict, List, Any
+import json
+import io
+import time
 
 from ..config import config
 
@@ -74,6 +77,20 @@ class DashboardAPI:
             except Exception as e:
                 st.error(f"Failed to fetch alerts: {e}")
                 return []
+
+    async def resolve_alert(self, alert_id: str) -> bool:
+        """Resolve an alert."""
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/api/v1/alerts/resolve",
+                    json={"alert_id": alert_id}
+                )
+                response.raise_for_status()
+                return True
+            except Exception as e:
+                st.error(f"Failed to resolve alert: {e}")
+                return False
 
     async def get_aggregated_metrics(self, model_id: str = None, since_hours: int = 6, window: str = "5m") -> Dict[str, Any]:
         """Get aggregated metrics."""
@@ -163,8 +180,18 @@ def create_metric_charts(metrics_data: Dict[str, List[Dict[str, Any]]]):
     st.plotly_chart(fig, use_container_width=True)
 
 
+def export_to_csv(data: pd.DataFrame, filename: str) -> bytes:
+    """Export DataFrame to CSV bytes."""
+    return data.to_csv(index=False).encode('utf-8')
+
+
+def export_to_json(data: List[Dict[str, Any]], filename: str) -> bytes:
+    """Export data to JSON bytes."""
+    return json.dumps(data, indent=2, default=str).encode('utf-8')
+
+
 def display_alerts(alerts: List[Dict[str, Any]]):
-    """Display alerts in a formatted way."""
+    """Display alerts in a formatted way with resolution capability."""
     if not alerts:
         st.success("No active alerts")
         return
@@ -199,9 +226,15 @@ def display_alerts(alerts: List[Dict[str, Any]]):
             st.write(f"**Message:** {alert['message']}")
 
             if not alert['resolved']:
-                if st.button(f"Resolve Alert", key=f"resolve_{alert['id']}"):
-                    # TODO: Implement alert resolution
-                    st.success("Alert resolution feature coming soon!")
+                if st.button(f"✓ Resolve Alert", key=f"resolve_{alert['id']}", type="primary"):
+                    # Resolve alert via API
+                    success = run_async(api.resolve_alert(alert['id']))
+                    if success:
+                        st.success(f"✅ Alert {alert['id']} resolved successfully!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("Failed to resolve alert. Please try again.")
 
 
 def main():
@@ -241,7 +274,24 @@ def main():
 
     # Auto-refresh option
     auto_refresh = st.sidebar.checkbox("Auto Refresh (30s)", value=False)
+    refresh_interval = st.sidebar.slider("Refresh Interval (seconds)", 5, 120, 30, 5, disabled=not auto_refresh)
+
     if auto_refresh:
+        # Use session state to track last refresh time
+        if 'last_refresh' not in st.session_state:
+            st.session_state.last_refresh = time.time()
+
+        current_time = time.time()
+        elapsed = current_time - st.session_state.last_refresh
+
+        if elapsed >= refresh_interval:
+            st.session_state.last_refresh = current_time
+            st.rerun()
+
+        # Show countdown
+        remaining = int(refresh_interval - elapsed)
+        st.sidebar.info(f"⏱️ Next refresh in {remaining}s")
+        time.sleep(1)
         st.rerun()
 
     # Main content tabs
@@ -307,8 +357,32 @@ def main():
             df = pd.DataFrame(metrics)
             df['timestamp'] = pd.to_datetime(df['timestamp'])
 
+            # Export buttons
+            col1, col2, col3 = st.columns([6, 1, 1])
+            with col1:
+                st.subheader("Recent Metrics")
+            with col2:
+                # CSV export
+                csv_data = export_to_csv(df, f"metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+                st.download_button(
+                    label="📥 CSV",
+                    data=csv_data,
+                    file_name=f"metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    help="Download metrics as CSV"
+                )
+            with col3:
+                # JSON export
+                json_data = export_to_json(metrics, f"metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+                st.download_button(
+                    label="📥 JSON",
+                    data=json_data,
+                    file_name=f"metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json",
+                    help="Download metrics as JSON"
+                )
+
             # Latest metrics table
-            st.subheader("Recent Metrics")
             display_df = df[['timestamp', 'model_id', 'model_type', 'latency', 'error_rate']].head(20)
             display_df['timestamp'] = display_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
             st.dataframe(display_df, use_container_width=True)
@@ -332,7 +406,15 @@ def main():
             st.info("No metrics data available for the selected time range")
 
     with tab3:
-        st.header("Alerts")
+        col1, col2, col3, col4 = st.columns([4, 2, 1, 1])
+        with col1:
+            st.header("Alerts")
+        with col2:
+            pass  # Spacer
+        with col3:
+            export_alerts_csv = st.button("📥 CSV", help="Export alerts to CSV", disabled=True, key="alerts_csv_btn")
+        with col4:
+            export_alerts_json = st.button("📥 JSON", help="Export alerts to JSON", disabled=True, key="alerts_json_btn")
 
         # Alert filters
         col1, col2 = st.columns(2)
@@ -345,6 +427,38 @@ def main():
 
         # Get alerts
         alerts = run_async(api.get_alerts(model_id, alert_hours, None if show_resolved else False))
+
+        # Enable export buttons if we have alerts
+        if alerts:
+            # Re-render export buttons with actual data
+            col1, col2, col3, col4 = st.columns([4, 2, 1, 1])
+            with col1:
+                pass
+            with col2:
+                pass
+            with col3:
+                # CSV export
+                alerts_df = pd.DataFrame(alerts)
+                csv_data = export_to_csv(alerts_df, f"alerts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+                st.download_button(
+                    label="📥 CSV",
+                    data=csv_data,
+                    file_name=f"alerts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    help="Download alerts as CSV",
+                    key="alerts_csv_download"
+                )
+            with col4:
+                # JSON export
+                json_data = export_to_json(alerts, f"alerts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+                st.download_button(
+                    label="📥 JSON",
+                    data=json_data,
+                    file_name=f"alerts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json",
+                    help="Download alerts as JSON",
+                    key="alerts_json_download"
+                )
 
         # Display alerts
         display_alerts(alerts)
