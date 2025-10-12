@@ -14,6 +14,16 @@ MonitorX addresses the observability gap that every ML team faces at scale by pr
 ✅ **Production Dashboard** - Real-time monitoring with CSV/JSON export
 ✅ **Docker Compose** - One-command deployment
 
+### 🔍 Verify It Works
+
+Prove MonitorX is Working As Intended (WAI) in 5 seconds:
+
+```bash
+./verify_quick.sh  # ✅ Runs 23 verification checks
+```
+
+See [VERIFICATION_GUIDE.md](VERIFICATION_GUIDE.md) and [PROOF_OF_WAI.md](PROOF_OF_WAI.md) for complete evidence.
+
 ## ✨ Features
 
 ### Core Monitoring
@@ -365,6 +375,29 @@ Test categories:
 - **Unit Tests**: Core types, metrics collector, SDK client
 - **API Tests**: All REST endpoints with mocked storage
 - **Integration Tests**: Alerting service with channel mocking
+
+### ✅ Verify MonitorX is Working As Intended (WAI)
+
+Run the quick verification script to prove all components are working:
+
+```bash
+# Quick verification (5 seconds, 23 checks)
+./verify_quick.sh
+```
+
+**Expected Output**:
+```
+╔════════════════════════════════════════════════════════════╗
+║          ✅ MonitorX is Working As Intended (WAI)         ║
+╚════════════════════════════════════════════════════════════╝
+
+Tests Passed: 23/23
+Tests Failed: 0/23
+```
+
+For comprehensive verification steps, see:
+- **[VERIFICATION_GUIDE.md](VERIFICATION_GUIDE.md)** - Detailed verification steps (5-30 min)
+- **[PROOF_OF_WAI.md](PROOF_OF_WAI.md)** - Complete evidence and test results
 
 ## 🤝 Contributing
 
