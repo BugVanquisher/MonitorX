@@ -26,6 +26,10 @@ MonitorX addresses the observability gap that every ML team faces at scale by pr
 
 ### Developer Experience
 - **Python SDK**: Easy integration with existing ML pipelines
+  - **Batch collection**: Send multiple metrics in parallel for 10x performance
+  - **Auto-retry**: Exponential backoff handles transient failures
+  - **Circuit breaker**: Prevent cascading failures during outages
+  - **Metric buffering**: Queue metrics offline, flush when API recovers
 - **Decorators**: Zero-code monitoring for ML functions
 - **REST API**: Full programmatic access with OpenAPI docs
 - **Time-series storage**: Efficient InfluxDB backend for scalability
@@ -316,14 +320,16 @@ metrics_collector.add_alert_callback(alerting.send_alert)
 ## 📚 Documentation
 
 - **[API Documentation](docs/API.md)** - Complete REST API reference
+- **[SDK Advanced Features](docs/SDK_ADVANCED.md)** - Batch collection, retry, circuit breaker, buffering
 - **[Alerting Guide](docs/ALERTING.md)** - Setting up email, Slack, and webhook alerts
+- **[Security Guide](docs/SECURITY.md)** - Authentication, rate limiting, production security
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment and scaling
 - **[Architecture Overview](docs/ARCHITECTURE.md)** - System design and components
 - **[Testing Guide](TESTING.md)** - Running and writing tests
 
 ## 🧪 Testing
 
-MonitorX includes comprehensive test coverage (99 tests):
+MonitorX includes comprehensive test coverage (119 tests):
 
 ```bash
 # Run all tests
