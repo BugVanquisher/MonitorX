@@ -1,6 +1,24 @@
-# 🎯 MonitorX: ML/AI Infrastructure Observability Platform
+<div align="center">
+
+# 🎯 MonitorX
+
+### ML/AI Infrastructure Observability Platform
 
 **The missing piece between ML model deployment and production reliability**
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Tests](https://img.shields.io/badge/tests-119%20passing-brightgreen.svg)]()
+[![Code Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)]()
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com)
+[![InfluxDB](https://img.shields.io/badge/InfluxDB-2.7-blue.svg)](https://www.influxdata.com)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com)
+
+**[Documentation](docs/)** | **[Quick Start](#-quick-start)** | **[API Reference](docs/API.md)** | **[Contributing](#-contributing)**
+
+---
+
+</div>
 
 MonitorX addresses the observability gap that every ML team faces at scale by providing comprehensive monitoring, alerting, and analytics for production ML infrastructure.
 

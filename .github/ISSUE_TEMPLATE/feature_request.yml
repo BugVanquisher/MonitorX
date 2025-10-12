@@ -1,0 +1,143 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for MonitorX
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ✨ Feature Request
+
+        Thank you for suggesting a new feature! Your ideas help make MonitorX better.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checks
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues to ensure this feature hasn't been requested
+          required: true
+        - label: I have checked the roadmap to see if this is already planned
+          required: true
+        - label: I have read the documentation to ensure this doesn't already exist
+          required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Why is it needed?
+      placeholder: "As a ML engineer, I often struggle with... because..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How should this feature work? Be as detailed as possible.
+      placeholder: |
+        Add a new endpoint `/api/v1/...` that allows...
+
+        When users do X, the system should Y...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What alternative solutions or workarounds have you considered?
+      placeholder: "I considered using X, but it doesn't work because..."
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Critical - Blocking my usage
+        - High - Important but have workaround
+        - Medium - Would be nice to have
+        - Low - Future consideration
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component should this feature be added to?
+      options:
+        - API Server
+        - Python SDK
+        - Dashboard
+        - Alerting System
+        - Documentation
+        - DevOps/Deployment
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Describe a specific use case for this feature
+      placeholder: |
+        **Scenario**: I'm monitoring 50 models in production
+        **Current Problem**: I can't easily compare performance across models
+        **With This Feature**: I could create a comparison dashboard that...
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example Implementation
+      description: If you have ideas about implementation, share them here
+      placeholder: |
+        ```python
+        # Example API usage
+        client.compare_models(
+            model_ids=["model-1", "model-2"],
+            metrics=["latency", "error_rate"]
+        )
+        ```
+      render: python
+
+  - type: textarea
+    id: mockup
+    attributes:
+      label: Mockups/Wireframes
+      description: If applicable, add mockups, wireframes, or screenshots
+      placeholder: "Drag and drop images here or paste URLs..."
+
+  - type: checkboxes
+    id: willingness
+    attributes:
+      label: Contribution
+      description: Are you willing to help implement this feature?
+      options:
+        - label: I am willing to submit a PR for this feature
+        - label: I can help test this feature
+        - label: I can help with documentation
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information that might be helpful
+      placeholder: "Similar features exist in tools like..."
+
+  - type: checkboxes
+    id: breaking
+    attributes:
+      label: Breaking Change
+      description: Would this feature require breaking changes?
+      options:
+        - label: This feature would require breaking changes to existing APIs
+        - label: This feature is backwards compatible

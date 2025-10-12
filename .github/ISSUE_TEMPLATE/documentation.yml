@@ -1,0 +1,114 @@
+name: 📚 Documentation Issue
+description: Report an issue with documentation or suggest improvements
+title: "[Docs]: "
+labels: ["documentation", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 📚 Documentation Issue
+
+        Help us improve MonitorX documentation!
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checks
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues
+          required: true
+        - label: I have checked the latest documentation
+          required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Missing Documentation
+        - Incorrect Information
+        - Unclear/Confusing
+        - Typo/Grammar
+        - Broken Link
+        - Outdated Information
+        - Request for Examples
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Which page or file needs improvement?
+      placeholder: "docs/API.md, README.md, etc."
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What's Wrong?
+      description: Describe the issue with the documentation
+      placeholder: "The section on 'X' doesn't explain how to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How should the documentation be improved?
+      placeholder: "Add a section that explains... or clarify the existing text by..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example Content
+      description: If you have specific wording or examples, provide them here
+      placeholder: |
+        ## Suggested Content
+
+        To configure the alerting system:
+
+        1. First, create an email channel...
+        2. Then, register it with...
+
+  - type: checkboxes
+    id: pages
+    attributes:
+      label: Affected Documentation Pages
+      description: Which pages are affected? (select all that apply)
+      options:
+        - label: README.md
+        - label: docs/API.md
+        - label: docs/SDK_ADVANCED.md
+        - label: docs/ALERTING.md
+        - label: docs/SECURITY.md
+        - label: docs/DEPLOYMENT.md
+        - label: docs/ARCHITECTURE.md
+        - label: CONTRIBUTING.md
+        - label: Other
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information that might be helpful
+      placeholder: "This would be especially helpful for newcomers..."
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Can you help improve the documentation?
+      options:
+        - label: I am willing to submit a PR to fix this
+        - label: I can provide more examples
+        - label: I can review proposed changes
