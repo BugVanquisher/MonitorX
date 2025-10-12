@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="images/monitorx_transparent.jpg" alt="MonitorX Logo" width="400">
+<img src="images/monitorx_transparent.png" alt="MonitorX Logo" width="400">
 
 # 🎯 MonitorX
 
