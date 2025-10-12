@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="images/monitorx.jpg" alt="MonitorX Logo" width="400">
+
 # 🎯 MonitorX
 
 ### ML/AI Infrastructure Observability Platform
