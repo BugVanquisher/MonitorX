@@ -27,7 +27,11 @@ from ..types import InferenceMetric, DriftMetric, ModelConfig, ResourceUsage, Th
 
 # Global instances (will be properly injected in production)
 metrics_collector = MetricsCollector()
-storage = InfluxDBStorage()
+
+# Import storage from server to use the connected instance
+def get_storage():
+    from ..server import storage
+    return storage
 
 router = APIRouter(prefix="/api/v1")
 
@@ -60,7 +64,7 @@ async def collect_inference_metric(metric_data: InferenceMetricRequest):
         await metrics_collector.collect_inference_metric(metric)
 
         # Store in InfluxDB
-        await storage.write_inference_metric(metric)
+        await get_storage().write_inference_metric(metric)
 
         return {"status": "success", "message": "Metric collected successfully"}
 
@@ -84,7 +88,7 @@ async def collect_drift_metric(drift_data: DriftMetricRequest):
         await metrics_collector.collect_drift_metric(drift_metric)
 
         # Store in InfluxDB
-        await storage.write_drift_metric(drift_metric)
+        await get_storage().write_drift_metric(drift_metric)
 
         return {"status": "success", "message": "Drift metric collected successfully"}
 
@@ -284,7 +288,7 @@ async def get_aggregated_metrics(
         since = datetime.now() - timedelta(hours=since_hours)
         end_time = datetime.now()
 
-        aggregated = await storage.get_aggregated_metrics(
+        aggregated = await get_storage().get_aggregated_metrics(
             model_id=model_id,
             start_time=since,
             end_time=end_time,

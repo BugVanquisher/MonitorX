@@ -25,7 +25,11 @@ import json
 import io
 import time
 
-from ..config import config
+# Support both relative import (when run as package) and absolute import (when run with streamlit)
+try:
+    from ..config import config
+except ImportError:
+    from monitorx.config import config
 
 
 class DashboardAPI:
