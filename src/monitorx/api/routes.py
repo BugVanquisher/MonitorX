@@ -258,6 +258,7 @@ async def health_check():
 
         # Check InfluxDB connection
         try:
+            storage = get_storage()
             if storage.client:
                 health = storage.client.health()
                 services["influxdb"] = "healthy" if health.status == "pass" else "unhealthy"
