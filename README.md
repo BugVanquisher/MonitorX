@@ -304,6 +304,8 @@ async with httpx.AsyncClient() as client:
 | `DASHBOARD_PORT` | Streamlit dashboard port | `8501` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 
+**Security note:** demo docker-compose defaults are for local testing only. Set strong values for `INFLUXDB_PASSWORD` and `INFLUXDB_TOKEN` before any real deployment.
+
 ### Alert Configuration
 
 ```python
