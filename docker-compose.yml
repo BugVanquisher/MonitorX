@@ -9,10 +9,10 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-admin123}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-monitorx-demo-password}
       - DOCKER_INFLUXDB_INIT_ORG=monitorx
       - DOCKER_INFLUXDB_INIT_BUCKET=metrics
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-my-super-secret-token}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-monitorx-demo-token}
       - DOCKER_INFLUXDB_INIT_RETENTION=30d
     volumes:
       - influxdb-data:/var/lib/influxdb2
@@ -32,7 +32,7 @@ services:
       - "8000:8000"
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-my-super-secret-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-monitorx-demo-token}
       - INFLUXDB_ORG=monitorx
       - INFLUXDB_BUCKET=metrics
       - API_HOST=0.0.0.0
