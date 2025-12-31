@@ -9,10 +9,10 @@ services:
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: admin
-      DOCKER_INFLUXDB_INIT_PASSWORD: password123
+      DOCKER_INFLUXDB_INIT_PASSWORD: monitorx-demo-password
       DOCKER_INFLUXDB_INIT_ORG: monitorx
       DOCKER_INFLUXDB_INIT_BUCKET: metrics
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: monitorx-admin-token-please-change-in-production
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: monitorx-demo-token
     volumes:
       - influxdb-storage:/var/lib/influxdb2
       - influxdb-config:/etc/influxdb2
@@ -33,7 +33,7 @@ services:
       - "8000:8000"
     environment:
       INFLUXDB_URL: http://influxdb:8086
-      INFLUXDB_TOKEN: monitorx-admin-token-please-change-in-production
+      INFLUXDB_TOKEN: monitorx-demo-token
       INFLUXDB_ORG: monitorx
       INFLUXDB_BUCKET: metrics
       API_HOST: 0.0.0.0
